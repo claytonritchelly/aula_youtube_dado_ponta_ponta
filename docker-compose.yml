@@ -1,0 +1,78 @@
+version: "3.8"
+
+services:
+  postgres_dw:
+    image: postgres:16
+    container_name: postgres_dw
+    environment:
+      POSTGRES_DB: dw
+      POSTGRES_USER: dw_user
+      POSTGRES_PASSWORD: dw_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dw:/var/lib/postgresql/data
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.12
+    container_name: airflow
+    depends_on:
+      - postgres_dw
+    environment:
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      # Variáveis do seu pipeline (Airflow vai repassar para as tasks)
+      AERODATABOX_API_KEY: ${AERODATABOX_API_KEY}
+      AERODATABOX_API_HOST: ${AERODATABOX_API_HOST}
+      AIRPORT_ICAO: ${AIRPORT_ICAO}
+      OFFSET_MINUTES: ${OFFSET_MINUTES}
+      DURATION_MINUTES: ${DURATION_MINUTES}
+      POSTGRES_DB: dw
+      POSTGRES_USER: dw_user
+      POSTGRES_PASSWORD: dw_pass
+      POSTGRES_HOST: postgres_dw
+      POSTGRES_PORT: 5432
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+      - airflow_logs:/opt/airflow/logs
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create
+        --username admin
+        --password admin
+        --firstname Clayton
+        --lastname Data
+        --role Admin
+        --email admin@email.com || true &&
+      airflow webserver & airflow scheduler
+      "
+
+  postgres_airflow:
+    image: postgres:16
+    container_name: postgres_airflow
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+    volumes:
+      - pgdata_airflow:/var/lib/postgresql/data
+
+  spark:
+    image: apache/spark:3.5.1-python3
+    container_name: spark
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8081:8080"
+
+volumes:
+  pgdata_dw:
+  pgdata_airflow:
+  airflow_logs:

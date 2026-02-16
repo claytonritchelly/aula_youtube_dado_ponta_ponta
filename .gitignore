@@ -1,0 +1,19 @@
+# env / secrets
+.env
+*.env
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# data & outputs
+data/
+logs/
+airflow_local/
+*.parquet
+*.json
+
+# OS
+.DS_Store
